@@ -1,0 +1,20 @@
+# Flutter / Dart
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+*.iml
+.idea/
+.vscode/
+# FlutterFlow AI workspace (local, por persona)
+.flutterflow/
+ff-workspace/
+# OS
+.DS_Store
+Thumbs.db
+# Secretos
+*.env
+**/credentials.json
