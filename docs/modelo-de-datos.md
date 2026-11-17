@@ -19,7 +19,6 @@ La defensa final exige **≥ 8 colecciones** en Firestore y **al menos una de tr
 | 9 | `pedidos` ⭐ transacción | raíz | `numero` (`PS-1048`), `user_ref`, `cliente_nombre`, `cliente_telefono`, `items_nombres`, `items_cantidades`, `items_precios` (listas paralelas), `cantidad_productos`, `subtotal`, `descuento`, `codigo_promo`, `envio`, `total`, `entrega` (`domicilio` \| `retiro`), `direccion`, `metodo_pago` (`sinpe` \| `efectivo`), `notas`, `estado` (`pendiente` \| `confirmado` \| `en_camino` \| `entregado` \| `cancelado`), `created_time` | 11, 12, 14, 17 |
 | 10 | `historial_pedidos` | raíz | `pedido_ref`, `estado`, `nota`, `fecha`, `admin_ref` | 12, 17 |
 | 11 | `promociones` | raíz | `codigo`, `descripcion`, `porcentaje`, `inicio`, `fin`, `todo_catalogo` (bool), `productos_refs` (lista), `banner` (imagen), `activa` | 06, 10, 18 |
-
 | 12 | `config` | raíz | `ultimo_pedido` (int): contador para el número `PS-xxxx` | 11 |
 
 ## Firebase Storage
