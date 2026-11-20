@@ -10,11 +10,13 @@ App para **Perfumes Salazar** (La Fortuna, San Carlos): los clientes exploran el
 - **Firebase** — Authentication (correo + Google), Cloud Firestore, Storage
 - **GitHub** — control de versiones y pull requests del equipo
 
+**Proyecto FlutterFlow:** [Perfumes Salazar](https://app.flutterflow.io/project/perfumes-salazar-i0yn4x). El Avance 2 oficial define 29 historias de usuario; el mínimo de la rúbrica del Avance 3 es 12 historias funcionales. El estado comprobado se registra en [docs/avance-3-evidencias.md](docs/avance-3-evidencias.md).
+
 ## Documentación
 
 | Documento | Contenido |
 |-----------|-----------|
-| [docs/historias-de-usuario.md](docs/historias-de-usuario.md) | 20 historias de usuario y cuáles entran en el Avance 3 |
+| [docs/historias-de-usuario.md](docs/historias-de-usuario.md) | 29 historias oficiales y meta de 12 para el Avance 3 |
 | [docs/modelo-de-datos.md](docs/modelo-de-datos.md) | Colecciones de Firestore, Storage, reglas y autenticación |
 | [docs/plan-avance-3.md](docs/plan-avance-3.md) | Rúbrica, reparto por integrante y checklist |
 | [docs/diseno.md](docs/diseno.md) | Colores, tipografías y componentes del prototipo |
@@ -33,7 +35,8 @@ docs/           Historias, modelo de datos, plan y prototipo
 
 | Integrante | Rol |
 |------------|-----|
-| Axel Segura | Setup, Firebase, autenticación y roles |
-| _Integrante 2_ | Inicio y catálogo |
-| _Integrante 3_ | Detalle y favoritos |
-| _Integrante 4_ | Carrito y pedidos |
+| Johan Sánchez Vásquez | Integrante del equipo |
+| Alex Daniel Salazar Brenes | Integrante del equipo |
+| Fabián Alberto Mora Cordero | Integrante del equipo |
+| Patrick Garita Chinchilla | Integrante del equipo |
+| Axel Segura Abarca | Integrante del equipo |
