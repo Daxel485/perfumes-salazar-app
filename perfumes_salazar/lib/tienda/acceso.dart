@@ -129,8 +129,8 @@ class _AccesoState extends State<Acceso> {
                           onPressed: () => setState(() => ocultar = !ocultar),
                         ),
                       ),
-                      validator: (v) => (v ?? '').length < (registro ? 6 : 1)
-                          ? traducir(context, 'Revisa la contraseña.')
+                      validator: (v) => (v ?? '').length < (registro ? 8 : 1)
+                          ? traducir(context, registro ? 'Usa al menos 8 caracteres.' : 'Revisa la contraseña.')
                           : null,
                     ),
                   if (registro)

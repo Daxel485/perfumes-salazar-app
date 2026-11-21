@@ -2,7 +2,11 @@
 
 La aplicación utiliza Firebase Authentication, Cloud Firestore y dos funciones HTTPS. Se puede evaluar el registro, catálogo, favoritos, carrito, promociones, solicitudes y panel administrativo con los emuladores locales. Los datos y cuentas de esta guía pertenecen al proyecto de prueba `demo-perfumes`.
 
-## Iniciar
+## Abrir el paquete de entrega en Windows
+
+Extraer el ZIP en una carpeta y abrir `INICIAR-DEMO.cmd`. Se necesitan Node.js 22 con npm y Java 21 en el PATH. El primer inicio descarga Firebase CLI, las dependencias y los emuladores. El lanzador carga los datos de muestra y abre [Perfumes Salazar](http://127.0.0.1:8765/). Conservar la ventana abierta durante la demostración. La carpeta `demo-web` incluye la compilación para este entorno.
+
+## Ejecutar desde el código fuente
 
 Se requieren Flutter 3.50, Node.js 22, Java 21 y Firebase CLI. Desde la raíz del repositorio, ejecutar en una terminal:
 

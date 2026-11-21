@@ -1,0 +1,22 @@
+{
+  "name": "Perfumes Salazar",
+  "short_name": "Salazar",
+  "lang": "es-CR",
+  "description": "Catálogo de fragancias y solicitudes de pedido de Perfumes Salazar.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f9f4e9",
+  "theme_color": "#211b17",
+  "icons": [
+    {
+      "src": "icons/Icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/Icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

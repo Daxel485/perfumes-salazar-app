@@ -30,19 +30,19 @@ void main() async {
   await FlutterFlowTheme.initialize();
   await cargarIdioma();
 
-  runApp(MyApp());
+  runApp(AplicacionSalazar());
 }
 
-class MyApp extends StatefulWidget {
+class AplicacionSalazar extends StatefulWidget {
   // This widget is the root of your application.
   @override
-  State<MyApp> createState() => _MyAppState();
+  State<AplicacionSalazar> createState() => _EstadoAplicacionSalazar();
 
-  static _MyAppState of(BuildContext context) =>
-      context.findAncestorStateOfType<_MyAppState>()!;
+  static _EstadoAplicacionSalazar of(BuildContext context) =>
+      context.findAncestorStateOfType<_EstadoAplicacionSalazar>()!;
 }
 
-class _MyAppState extends State<MyApp> {
+class _EstadoAplicacionSalazar extends State<AplicacionSalazar> {
   ThemeMode _themeMode = ThemeMode.light;
 
   late AppStateNotifier _appStateNotifier;
@@ -1587,8 +1587,8 @@ class _AccesoState extends State<_salazarAcceso> {
                           onPressed: () => setState(() => ocultar = !ocultar),
                         ),
                       ),
-                      validator: (v) => (v ?? '').length < (registro ? 6 : 1)
-                          ? traducir(context, 'Revisa la contraseña.')
+                      validator: (v) => (v ?? '').length < (registro ? 8 : 1)
+                          ? traducir(context, registro ? 'Usa al menos 8 caracteres.' : 'Revisa la contraseña.')
                           : null,
                     ),
                   if (registro)
@@ -1710,6 +1710,7 @@ const _ingles = <String, String>{
   "Contraseña": "Password",
   "Confirmar contraseña": "Confirm password",
   "Revisa la contraseña.": "Check the password.",
+  "Usa al menos 8 caracteres.": "Use at least 8 characters.",
   "Ingresa un correo válido.": "Enter a valid email address.",
   "Las contraseñas no coinciden.": "The passwords do not match.",
   "Enviar enlace": "Send link",

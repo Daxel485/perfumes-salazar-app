@@ -1,21 +1,44 @@
-# Integración de la entrega final en FlutterFlow
+# Guía de evaluación final
 
-El código de esta carpeta de trabajo está preparado para integrar. Los archivos locales no registran widgets en el editor ni publican funciones o reglas de Firebase.
+## Entornos de la entrega
 
-| Rubro | Código preparado | Verificación en el entorno |
-|---|---|---|
-| Ocho colecciones | users, products, presentaciones, categorias, marcas, promociones y pedidos, más las subcolecciones favoritos y carrito | Crear los esquemas, cargar datos de demostración y demostrar lecturas y escrituras por flujo |
-| Transacciones | crearPedido y cancelarPedido en firebase/functions | Ejecutar ambos flujos y comprobar el movimiento de stock, la propiedad del pedido y el reintento |
-| Autenticación y roles | Acceso por correo y Google configurados en Firebase. Reglas propuestas para roles cliente y admin | Probar cada proveedor y comprobar que el cliente tampoco puede escribir directamente en las colecciones administrativas |
-| Tres widgets | IndicadorStock, NotasOlfativas, EstadoPedido | Registrarlos en Custom Code y enlazarlos en detalle y pedidos |
-| Cinco funciones | formatoColones, coincidePerfume, cantidadDisponible, calcularSubtotal y calcularDescuento | Registrarlas por separado y enlazarlas en catálogo y carrito |
-| Fidelidad y prácticas | Prototipo y 29 historias documentadas | Comparar las pantallas funcionales con el prototipo y cruzar los flujos con los laboratorios del curso |
-| Tecnología adicional | Transacciones con funciones HTTPS invocables de Firebase | Confirmar contra el temario que esta tecnología es adicional y demostrar su uso |
-| Aplicabilidad comercial | Proyecto de tienda de perfumes y catálogo de demostración | Sustentar con evidencia del cliente o análisis de mercado documentado |
-| Caminata del artículo | Pendiente de incorporar el artículo de entrega | Exponer problema, método, arquitectura, resultados observados y limitaciones, señalando cada sección del artículo |
+| Entorno | Estado comprobado |
+|---|---|
+| Demostración local | Aplicación web compilada con Flutter y servicios Firebase emulados. En el navegador se envió una solicitud con el cupón BIENVENIDA10. Las pruebas de integración comprueban roles, importes, concurrencia, cancelación y movimientos de inventario. [Cupón aplicado](evidencias/Cupon.jpg) · [Pedido registrado](evidencias/Pedido.jpg) |
+| Firebase de producción | Reglas de Firestore publicadas en `perfumes-salazar-i0yn4x`. Los proveedores de autenticación habilitados son correo y contraseña y Google. |
+| FlutterFlow Studio | El proyecto tiene guardado el `main.dart` personalizado. Test Mode compiló y mostró el catálogo con fotografías y cantidades. [Captura de FlutterFlow](evidencias/FlutterFlow.jpg) |
+| Funciones de pedidos en producción | El despliegue de las funciones invocables `crearPedido` y `cancelarPedido` requiere el plan Blaze. El recorrido transaccional verificado se ejecuta en el emulador del ZIP. |
 
-## Contrato de pedidos
+La primera ejecución del paquete requiere Internet, Windows, Node.js 22 con npm y JDK 21. El lanzador inicia los emuladores, carga las cuentas de demostración y abre la web. [Instrucciones de ejecución](../firebase/DEMOSTRACION.md) · [Requisitos de despliegue de Firebase](https://firebase.google.com/docs/functions/get-started#deploy_functions_to_a_production_environment)
 
-La acción cliente llama a crearPedido con solicitudId, items (pares presentacionId y cantidad) y, opcionalmente, codigo. Conservar solicitudId durante un reintento. El servidor toma precio y stock de presentaciones, comprueba que cada producto siga activo, calcula el descuento y devuelve pedidoId y total. Cancelar con cancelarPedido y pedidoId. Los importes de presentaciones se almacenan como colones enteros.
+## Evidencias para la rúbrica
 
-Las reglas proponen lectura pública de catálogo activo y reservan la edición al rol admin. Los usuarios nuevos quedan limitados a cliente. Las consultas públicas deben filtrar activo o activa según la colección. La creación de pedidos se reserva a la función de servidor. Verificar las reglas en un entorno de prueba antes de publicarlas. Las promociones se validan en el servidor. Un listado público de promociones requiere una proyección separada con únicamente datos publicables.
+| Criterio | Dónde comprobarlo |
+|---|---|
+| Almacenamiento | La demostración usa ocho colecciones raíz con documentos y dos subcolecciones privadas. La tabla de datos detalla su uso. |
+| Autenticación y roles | Entrar con las cuentas locales de cliente y administración. La prueba de integración verifica que un cliente puede consultar su perfil y que solo administración puede editar productos o avanzar pedidos. En el emulador, Google usa una identidad simulada. |
+| Tres widgets personalizados | La ficha muestra `NotasOlfativas` e `IndicadorStock`. El historial utiliza `EstadoPedido`. [Widgets](../perfumes_salazar/lib/custom_code/widgets/) |
+| Cinco funciones personalizadas | Buscar por nombre, marca o aroma, agregar unidades, revisar subtotales y aplicar un cupón. Esos pasos usan `coincidePerfume`, `cantidadDisponible`, `formatoColones`, `calcularSubtotal` y `calcularDescuento`. [Funciones del catálogo](../perfumes_salazar/lib/custom_code/functions/catalogo.dart) |
+| Fidelidad visual | Comparar bienvenida, catálogo, detalle, favoritos y pedidos con la navegación y la identidad visual del prototipo. [Prototipo del Avance 2](prototipo/) |
+| Aplicación de prácticas e investigación | Seguir una operación desde el acceso hasta la escritura privada en Firestore. Las funciones HTTPS reservan el inventario en una transacción y reconocen los reintentos. [Funciones de pedidos](../firebase/functions/index.js) |
+| Aplicabilidad comercial | El artículo compara el catálogo, los filtros y la atención de tres comercios costarricenses. [Análisis de mercado](articulo-perfumes-salazar.md) |
+| Presentación del artículo | El recorrido relaciona problema, método, comparación de mercado, desarrollo y resultados con las operaciones de la app. [Guía de exposición](articulo-perfumes-salazar.md) |
+
+## Datos de la demostración
+
+| Colección raíz | Uso |
+|---|---|
+| `users` | Perfiles y rol que controla el acceso a administración |
+| `products` | Fichas de fragancias, imágenes y visibilidad |
+| `presentaciones` | Volumen, precio y existencias de cada variante |
+| `categorias` | Clasificación de fragancias y filtros |
+| `marcas` | Marcas del catálogo |
+| `promociones` | Códigos de descuento con período de vigencia |
+| `pedidos` | Solicitud con precios aceptados, descuento, total, propietario y estado |
+| `movimientos_inventario` | Reserva o devolución vinculada al pedido y a sus presentaciones |
+
+Las subcolecciones `users/{uid}/favoritos` y `users/{uid}/carrito` guardan las selecciones de cada cliente. El servidor calcula el total en colones, coteja las cantidades y guarda en la misma transacción el pedido, el movimiento y las existencias. La cancelación de un pedido pendiente restituye cada unidad una sola vez. [Prueba reproducible](../firebase/scripts/verificar.cjs)
+
+## Contacto y pagos
+
+El pedido registra una solicitud para seguimiento. WhatsApp abre una consulta con su identificador. Para dirigir el mensaje a la tienda, la compilación admite `WHATSAPP_COMERCIO` con el número internacional del comercio. La demostración permite seleccionar el destinatario al compartir. El cobro por SINPE Móvil o efectivo corresponde a la coordinación comercial posterior.

@@ -68,6 +68,7 @@ const _ingles = <String, String>{
   "Contraseña": "Password",
   "Confirmar contraseña": "Confirm password",
   "Revisa la contraseña.": "Check the password.",
+  "Usa al menos 8 caracteres.": "Use at least 8 characters.",
   "Ingresa un correo válido.": "Enter a valid email address.",
   "Las contraseñas no coinciden.": "The passwords do not match.",
   "Enviar enlace": "Send link",
