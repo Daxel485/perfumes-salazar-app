@@ -18,3 +18,16 @@ Thumbs.db
 # Secretos
 *.env
 **/credentials.json
+node_modules/
+*-debug.log
+.firebase/
+android/local.properties
+**/local.properties
+**/ephemeral/
+*.jks
+*.keystore
+*.p12
+*.mobileprovision
+**/key.properties
+**/Generated.xcconfig
+**/flutter_export_environment.sh

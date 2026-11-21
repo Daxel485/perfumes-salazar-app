@@ -1,6 +1,6 @@
 # Cómo trabajamos
 
-La rúbrica cuenta **pull requests con código significativo de cada integrante** (Avance 3: al menos 1 por persona; defensa final: 3 por persona, separados por al menos una semana). Nadie hace push directo a `main`.
+La rúbrica cuenta **pull requests con código significativo de cada integrante**. El equipo tiene cinco integrantes: para el Avance 3 se necesita al menos un aporte significativo de cada uno; la defensa final pide tres por persona, separados por al menos una semana. Nadie hace push directo a `main`. Un PR de documentación o generado por otra persona no acredita código propio del integrante.
 
 ## Primera vez
 
@@ -14,11 +14,11 @@ cd perfumes-salazar-app
 ```bash
 git checkout main
 git pull
-git checkout -b feature/hu-07-catalogo
+git checkout -b feature/hu-09-filtros
 # ... cambios ...
 git add .
-git commit -m "feat(catalogo): chips de categorías como custom widget (HU-07)"
-git push -u origin feature/hu-07-catalogo
+git commit -m "feat(catalogo): filtros por categoría (HU-09)"
+git push -u origin feature/hu-09-filtros
 ```
 
 Luego, en GitHub: **Compare & pull request** → base `main` → usar la plantilla → pedir revisión a otro integrante. Quien revisa aprueba y hace **Merge**. Después todos hacen `git pull` en `main`.

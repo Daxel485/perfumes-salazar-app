@@ -1,43 +1,47 @@
-# Modelo de datos (Firestore + Storage)
+# Modelo de datos de Perfumes Salazar
 
-La defensa final exige **≥ 8 colecciones** en Firestore y **al menos una de transacciones**. Aquí hay 11; `pedidos` es la colección transaccional.
+Este documento distingue el esquema **creado en FlutterFlow** del modelo previsto para las demás historias. Crear un esquema no equivale a cargar documentos, configurar reglas ni conectar las pantallas.
 
-## Colecciones
+## Esquema creado
 
-| # | Colección | Tipo | Campos principales | HU |
-|---|-----------|------|--------------------|----|
-| 1 | `users` | raíz | `display_name`, `email`, `phone_number`, `photo_url`, `role` (`cliente` \| `admin`), `idioma`, `notif_promos` (bool), `created_time` | 02–05, 13, 19 |
-| 2 | `categorias` | raíz | `nombre`, `orden` (int), `activa` (bool) | 06, 07, 16 |
-| 3 | `marcas` | raíz | `nombre`, `logo` (imagen) | 07, 15, 16 |
-| 4 | `productos` | raíz | `nombre`, `marca_ref`, `marca_nombre`, `categoria_ref`, `tipo` (EDP/EDT/Parfum), `descripcion`, `nota_salida`, `nota_corazon`, `nota_fondo`, `imagenes` (lista), `color_fondo`, `precio_desde` (int ₡), `stock_total` (int), `visible`, `destacado`, `created_time` | 06–08, 15 |
-| 5 | `productos/{id}/presentaciones` | subcolección | `ml` (int), `precio` (int ₡), `stock` (int) | 08, 10, 15 |
-| 6 | `users/{uid}/favoritos` | subcolección | `producto_ref`, `created_time` | 09 |
-| 7 | `users/{uid}/carrito` | subcolección | `producto_ref`, `nombre`, `marca`, `imagen`, `ml`, `precio_unitario`, `cantidad` | 10, 11 |
-| 8 | `users/{uid}/direcciones` | subcolección | `alias`, `provincia`, `canton`, `detalle`, `predeterminada` | 11, 13 |
-| 9 | `pedidos` ⭐ transacción | raíz | `numero` (`PS-1048`), `user_ref`, `cliente_nombre`, `cliente_telefono`, `items` (lista de *ItemPedido*), `subtotal`, `descuento`, `codigo_promo`, `envio`, `total`, `entrega` (`domicilio` \| `retiro`), `direccion`, `metodo_pago` (`sinpe` \| `efectivo`), `notas`, `estado` (`pendiente` \| `confirmado` \| `en_camino` \| `entregado` \| `cancelado`), `created_time` | 11, 12, 14, 17 |
-| 10 | `pedidos/{id}/historial` | subcolección | `estado`, `nota`, `fecha`, `admin_ref` | 12, 17 |
-| 11 | `promociones` | raíz | `codigo`, `descripcion`, `porcentaje`, `inicio`, `fin`, `todo_catalogo` (bool), `productos_refs` (lista), `banner` (imagen), `activa` | 06, 10, 18 |
+| Colección | Campos | Historias relacionadas |
+|---|---|---|
+| `users` | `email`, `display_name`, `photo_url`, `uid`, `created_time`, `phone_number`, `role` (`cliente` o `admin`) | HU-01, HU-02, HU-04 |
+| `products` | `nombre`, `marca`, `categoria`, `descripcion`, `notas`, `aroma`, `imagen`, `precio`, `stock`, `activo` | HU-06 a HU-09 |
 
-Data type (struct) **`ItemPedido`**: `producto_ref`, `nombre`, `ml`, `precio_unitario`, `cantidad`.
+`precio` es `Double` y representa colones costarricenses; `stock` es `Integer`. `activo` controla la visibilidad. La interfaz debe impedir agregar al carrito cuando `stock` es cero. Los nombres de colecciones son los identificadores reales de FlutterFlow y Firestore; no se deben traducir unilateralmente.
 
-Contador de número de pedido: documento `config/contadores` con `ultimo_pedido` (int), actualizado en la misma acción que crea el pedido.
+## Datos comprobados en Firebase
 
-## Firebase Storage
+La consola de Firestore muestra cuatro colecciones raíz con documentos. `products` contiene los tres perfumes. `marcas` contiene Dior, Chanel e Yves Saint Laurent. `categorias` contiene Hombre y Mujer. Cada documento de marca y categoría incluye el nombre y el booleano `activa`.
 
-```
-productos/{productoId}/{n}.jpg     imágenes del perfume (HU-15)
-marcas/{marcaId}.png               logos (HU-16)
-promociones/{promoId}.jpg          banners (HU-18)
-users/{uid}/avatar.jpg             foto de perfil (HU-13)
-```
+La colección raíz `presentaciones` vincula cada variante con el ID real de su documento en `products` mediante `producto_id`. Se cargaron presentaciones de demostración de 100 ml.
 
-## Reglas (resumen)
+| Documento | Precio en colones | Existencias iniciales |
+|---|---:|---:|
+| sauvage-100 | 68 500 | 7 |
+| black-opium-100 | 73 500 | 0 |
+| chanel-5-100 | 79 500 | 4 |
 
-- `productos`, `categorias`, `marcas`, `promociones`: lectura pública; escritura solo si `users/{uid}.role == 'admin'`.
-- `users/{uid}` y sus subcolecciones: solo el propio usuario (y admin lectura).
-- `pedidos`: el cliente crea y lee los suyos; solo admin cambia `estado`; el cliente puede pasar a `cancelado` solo si está `pendiente`.
+## Modelo de los flujos de cliente
 
-## Autenticación (≥ 2 tipos)
+| Colección | Campos propuestos | Historias relacionadas |
+|---|---|---|
+| `presentaciones` | `producto_id`, `ml`, `precio`, `stock`, `activa` | HU-07, HU-13 |
+| `users/{uid}/favoritos` | `producto_ref`, `created_time` | HU-12 |
+| `users/{uid}/carrito` | `producto_ref`, `presentacion_ref`, `precio_unitario`, `cantidad` | HU-13, HU-14 |
+| `categorias` | `nombre`, `orden`, `activa` | HU-09, HU-27 |
+| `marcas` | `nombre`, `logo`, `activa` | HU-09, HU-27 |
+| `pedidos` | `user_ref`, `items`, `subtotal`, `total`, `estado`, `created_time` | HU-16 a HU-18, HU-28 |
+| `promociones` | `codigo`, `porcentaje`, `inicio`, `fin`, `activa` | HU-11, HU-15, HU-29 |
 
-1. Correo y contraseña (HU-02, HU-03, HU-05)
-2. Google (HU-04)
+La defensa final requiere al menos ocho colecciones, incluida una transaccional (`pedidos`). Esa meta no implica que las colecciones pendientes existan en este avance.
+
+## Seguridad prevista
+
+- Lectura pública de productos activos, categorías y marcas.
+- Escritura de catálogo reservada a administradores verificados por `users/{uid}.role`.
+- Favoritos y carrito accesibles solo por su propietario.
+- Los pedidos se leen por su cliente; el cambio de estado se reserva a administradores.
+
+Las reglas deben desplegarse y probarse antes de usar datos reales. Firebase Authentication tiene habilitados correo y contraseña y el proveedor Google. La prueba de acceso con cada perfil sigue pendiente.

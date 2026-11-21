@@ -1,0 +1,31 @@
+{
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "functions": {
+    "source": "functions"
+  },
+  "emulators": {
+    "auth": {
+      "port": 9099
+    },
+    "firestore": {
+      "port": 8085
+    },
+    "ui": {
+      "enabled": false
+    },
+    "functions": {
+      "port": 5001
+    }
+  },
+  "hosting": {
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ],
+    "public": "../perfumes_salazar/build/web"
+  }
+}

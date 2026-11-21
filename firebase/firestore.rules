@@ -1,0 +1,85 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function esPropietario(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    function esAdmin() {
+      return request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', 'cliente') == 'admin';
+    }
+
+    function perfilValido() {
+      return request.resource.data.keys().hasOnly([
+        'uid', 'email', 'display_name', 'photo_url', 'phone_number',
+        'created_time', 'role', 'idioma'
+      ]) && request.resource.data.uid == request.auth.uid;
+    }
+
+    match /users/{uid} {
+      allow read: if esPropietario(uid) || esAdmin();
+      allow create: if esPropietario(uid) && perfilValido() &&
+        request.resource.data.get('role', 'cliente') == 'cliente';
+      allow update: if esPropietario(uid) && perfilValido() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'display_name', 'photo_url', 'phone_number', 'idioma'
+        ]);
+
+      match /favoritos/{id} {
+        allow read, delete: if esPropietario(uid);
+        allow create: if esPropietario(uid) &&
+          request.resource.data.keys().hasOnly(['producto_ref', 'created_time']) &&
+          request.resource.data.producto_ref == /databases/$(database)/documents/products/$(id);
+      }
+
+      match /carrito/{id} {
+        allow read, delete: if esPropietario(uid);
+        allow create, update: if esPropietario(uid) &&
+          request.resource.data.keys().hasOnly(['presentacion_ref', 'cantidad']) &&
+          request.resource.data.presentacion_ref == /databases/$(database)/documents/presentaciones/$(id) &&
+          request.resource.data.cantidad is int &&
+          request.resource.data.cantidad > 0 && request.resource.data.cantidad <= 99;
+      }
+    }
+
+    match /products/{id} {
+      allow read: if resource.data.activo == true || esAdmin();
+      allow create, update: if esAdmin();
+    }
+
+    match /presentaciones/{id} {
+      allow read: if resource.data.activa == true || esAdmin();
+      allow create, update: if esAdmin();
+    }
+
+    match /categorias/{id} {
+      allow read: if resource.data.activa == true || esAdmin();
+      allow write: if esAdmin();
+    }
+
+    match /marcas/{id} {
+      allow read: if resource.data.activa == true || esAdmin();
+      allow write: if esAdmin();
+    }
+
+    match /promociones/{id} {
+      allow read: if resource.data.activa == true || esAdmin();
+      allow write: if esAdmin();
+    }
+
+    match /movimientos_inventario/{id} {
+      allow read: if esAdmin();
+    }
+
+    match /pedidos/{id} {
+      allow read: if esAdmin() || (request.auth != null &&
+        resource.data.user_ref == /databases/$(database)/documents/users/$(request.auth.uid));
+      allow update: if esAdmin() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['estado']) &&
+        ((resource.data.estado == 'pendiente' && request.resource.data.estado == 'confirmado') ||
+         (resource.data.estado == 'confirmado' && request.resource.data.estado == 'en_preparacion') ||
+         (resource.data.estado == 'en_preparacion' && request.resource.data.estado == 'entregado'));
+    }
+  }
+}
