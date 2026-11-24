@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'tienda/idioma.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -11,6 +12,27 @@ import 'backend/firebase/firebase_config.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import 'flutter_flow/flutter_flow_util.dart';
 import 'flutter_flow/nav/nav.dart';
+
+// El marco de teléfono de la vista web puede cubrir el encabezado sin
+// comunicar un margen superior. En un dispositivo se respeta el margen real.
+Widget protegerEncabezadoMovil(BuildContext context, Widget? child) {
+  final pantalla = MediaQuery.of(context);
+  if (!kIsWeb ||
+      Uri.base.host != 'tm-prod.dreamflow.cloud' ||
+      pantalla.size.width >= 600 ||
+      pantalla.orientation != Orientation.portrait ||
+      pantalla.viewPadding.top > 0) {
+    return child ?? const SizedBox.shrink();
+  }
+  const margenSuperior = 52.0;
+  return MediaQuery(
+    data: pantalla.copyWith(
+      padding: pantalla.padding.copyWith(top: margenSuperior),
+      viewPadding: pantalla.viewPadding.copyWith(top: margenSuperior),
+    ),
+    child: child ?? const SizedBox.shrink(),
+  );
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -94,6 +116,7 @@ class _MyAppState extends State<MyApp> {
         builder: (_, idioma, __) => MaterialApp.router(
               locale: idioma,
               debugShowCheckedModeBanner: false,
+              builder: protegerEncabezadoMovil,
               title: 'Perfumes Salazar',
               localizationsDelegates: [
                 GlobalMaterialLocalizations.delegate,

@@ -13,8 +13,10 @@ service cloud.firestore {
     function perfilValido() {
       return request.resource.data.keys().hasOnly([
         'uid', 'email', 'display_name', 'photo_url', 'phone_number',
-        'created_time', 'role', 'idioma'
-      ]) && request.resource.data.uid == request.auth.uid;
+        'created_time', 'role', 'idioma', 'direccion'
+      ]) && request.resource.data.uid == request.auth.uid &&
+        request.resource.data.get('direccion', '') is string &&
+        request.resource.data.get('direccion', '').size() <= 500;
     }
 
     match /users/{uid} {
@@ -23,7 +25,7 @@ service cloud.firestore {
         request.resource.data.get('role', 'cliente') == 'cliente';
       allow update: if esPropietario(uid) && perfilValido() &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'display_name', 'photo_url', 'phone_number', 'idioma'
+          'display_name', 'photo_url', 'phone_number', 'idioma', 'direccion'
         ]);
 
       match /favoritos/{id} {
@@ -75,7 +77,7 @@ service cloud.firestore {
     match /pedidos/{id} {
       allow read: if esAdmin() || (request.auth != null &&
         resource.data.user_ref == /databases/$(database)/documents/users/$(request.auth.uid));
-      allow update: if esAdmin() &&
+      allow update: if esAdmin() && resource.data.get('inventario_version', 1) < 2 &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['estado']) &&
         ((resource.data.estado == 'pendiente' && request.resource.data.estado == 'confirmado') ||
          (resource.data.estado == 'confirmado' && request.resource.data.estado == 'en_preparacion') ||
