@@ -25,7 +25,7 @@ async function iniciar() {
     for (const [coleccion, valores] of [['categorias',['Hombre','Mujer']],['marcas',['Dior','Chanel','Yves Saint Laurent']]]) {
       for (const nombre of valores) tx.create(db.collection(coleccion).doc(nombre.toLowerCase().replaceAll(' ','-')), {nombre,activa:true});
     }
-    tx.create(db.doc('promociones/BIENVENIDA10'),{codigo:'BIENVENIDA10',porcentaje:10,activa:true,inicio:Timestamp.fromMillis(Date.now()-86400000),fin:Timestamp.fromMillis(Date.now()+365*86400000)});
+    tx.create(db.doc('promociones/BIENVENIDA10'),{codigo:'BIENVENIDA10',descripcion:'10 % en Chanel N°5',producto_ids:['chanel-5'],porcentaje:10,activa:true,inicio:Timestamp.fromMillis(Date.now()-86400000),fin:Timestamp.fromMillis(Date.now()+365*86400000)});
     tx.create(db.doc('users/cliente/favoritos/sauvage'),{producto_ref:db.doc('products/sauvage'),created_time:FieldValue.serverTimestamp()});
     tx.create(db.doc('users/cliente/carrito/chanel-5-100'),{presentacion_ref:db.doc('presentaciones/chanel-5-100'),cantidad:1});
     tx.create(inicio,{cargado:FieldValue.serverTimestamp()});

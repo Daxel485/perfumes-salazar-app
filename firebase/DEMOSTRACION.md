@@ -1,6 +1,6 @@
 # Demostración local de Perfumes Salazar
 
-La aplicación utiliza Firebase Authentication, Cloud Firestore y dos funciones HTTPS. Se puede evaluar el registro, catálogo, favoritos, carrito, promociones, solicitudes y panel administrativo con los emuladores locales. Los datos y cuentas de esta guía pertenecen al proyecto de prueba `demo-perfumes`.
+La aplicación utiliza Firebase Authentication, Cloud Firestore y tres funciones HTTPS. Se puede evaluar el registro, catálogo, favoritos, carrito, promociones, solicitudes y panel administrativo con los emuladores locales. Los datos y cuentas de esta guía pertenecen al proyecto de prueba `demo-perfumes`.
 
 ## Abrir el paquete de entrega en Windows
 
@@ -35,9 +35,9 @@ El script de carga es repetible. Conserva los cambios al volver a ejecutarlo sob
 
 1. Entrar como invitado, buscar Chanel y revisar el precio, las notas y las unidades disponibles de la presentación de 100 ml.
 2. Entrar como cliente, abrir Favoritos y Carrito. En la primera carga se prepara un Chanel N°5. La aplicación permite quitarlo o cambiar su cantidad.
-3. Revisar el pedido, aplicar `BIENVENIDA10` y enviar. Para una unidad de ₡79 500 el total es ₡71 550. La transacción guarda los precios, aplica el descuento, rebaja existencias y vacía el carrito.
-4. Consultar Mis pedidos. Cancelar un pedido pendiente y comprobar que las unidades vuelven a estar disponibles.
-5. Entrar como administrador. En el perfil, abrir Panel de administración para editar productos, presentaciones, marcas, categorías y promociones. Marcar un pedido pendiente como confirmado, en preparación y entregado.
+3. En Perfil, guardar una dirección. En Inicio, «Ver promoción» abre el catálogo con los perfumes participantes. Agregar Chanel y Sauvage al carrito y aplicar BIENVENIDA10. La promoción de muestra descuenta un 10 % únicamente de Chanel. Un código vencido muestra «Código no válido» y conserva el total anterior.
+4. En «Revisar pedido», seleccionar domicilio o retiro y SINPE Móvil o efectivo. Con domicilio, revisar la dirección precargada. Enviar y comprobar el número de pedido, el resumen y el acceso al historial. Desde el detalle, WhatsApp abre una consulta con la referencia del pedido.
+5. En Administración → Pedidos, avanzar de pendiente a confirmado, en preparación y entregado. En un pedido distinto, cancelar mientras sigue pendiente. Durante la reserva, las unidades disponibles son stock menos reservado. La entrega descuenta el stock físico y libera la reserva. La cancelación solo libera la reserva. Las promociones anteriores que carecen del campo producto_ids mantienen el alcance general hasta que se edita su selección.
 
 Firestore usa las colecciones raíz `products`, `presentaciones`, `categorias`, `marcas`, `promociones`, `users`, `pedidos` y `movimientos_inventario`, además de las subcolecciones privadas `favoritos` y `carrito` de cada cliente. El registro administrativo de inventario conserva la reserva o devolución de cada presentación en la misma transacción del pedido. Los cambios en el carrito se guardan por usuario. La colección `pedidos` mantiene el historial aunque luego cambie el catálogo.
 
@@ -46,6 +46,7 @@ Firestore usa las colecciones raíz `products`, `presentaciones`, `categorias`, 
 Con los tres emuladores en ejecución, ejecutar en la raíz:
 
 ```powershell
+node firebase/scripts/probar_compra.cjs
 node firebase/scripts/verificar.cjs
 ```
 

@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'idioma.dart';
 import '../backend/firebase/firebase_config.dart' show entornoLocal;
 
@@ -24,6 +25,16 @@ final db = FirebaseFirestore.instance;
 User? get cliente => FirebaseAuth.instance.currentUser;
 DocumentReference<Datos> get perfil => db.collection('users').doc(cliente!.uid);
 int entero(dynamic valor) => valor is num ? valor.toInt() : 0;
+int unidadesDisponibles(Datos? datos) =>
+    (entero(datos?['stock']) - entero(datos?['reservado']))
+        .clamp(0, 2147483647)
+        .toInt();
+
+bool aplicaProducto(Datos promocion, dynamic id) {
+  final elegibles = promocion['producto_ids'];
+  return elegibles == null || (elegibles is List && elegibles.contains(id));
+}
+
 const tinta = Color(0xff211b17);
 const crema = Color(0xfff9f4e9);
 const oro = Color(0xffbe9147);
@@ -125,6 +136,7 @@ class Tienda extends StatefulWidget {
 class _TiendaState extends State<Tienda> {
   String consulta = '', categoria = '', marca = '', orden = 'Nombre';
   bool disponibles = false;
+
   static const rutas = [
     '/inicio',
     '/catLogo',
@@ -152,13 +164,26 @@ class _TiendaState extends State<Tienda> {
     final indice = titulos.indexOf(seccion);
     Widget cuerpo;
     if (seccion == 'Inicio' || seccion == 'Catálogo') {
-      cuerpo = catalogo(seccion == 'Inicio');
+      final codigo = GoRouterState.of(context).uri.queryParameters['promocion'];
+      cuerpo = codigo == null
+          ? catalogo(seccion == 'Inicio')
+          : Resultados(
+              db.collection('promociones').where('activa', isEqualTo: true),
+              (lista) {
+              final promo = lista
+                  .where((p) => p.id == codigo && vigente(p.data()))
+                  .firstOrNull;
+              return promo == null
+                  ? vacio('La promoción ha finalizado.')
+                  : catalogo(false, promo);
+            });
     } else if (cliente == null) {
       cuerpo = Center(
         child: FilledButton(
           onPressed: () => context.push('/iniciarSesion'),
           child: Etiqueta(
-              'Iniciar sesión para acceder a ${seccion.toLowerCase()}'),
+            'Iniciar sesión para acceder a ${seccion.toLowerCase()}',
+          ),
         ),
       );
     } else {
@@ -211,7 +236,9 @@ class _TiendaState extends State<Tienda> {
         items: [
           for (var i = 0; i < 5; i++)
             BottomNavigationBarItem(
-                icon: Icon(iconos[i]), label: traducir(context, titulos[i])),
+              icon: Icon(iconos[i]),
+              label: traducir(context, titulos[i]),
+            ),
         ],
       ),
     );
@@ -229,133 +256,160 @@ class _TiendaState extends State<Tienda> {
           ],
         ),
       );
-  Widget catalogo(bool inicio) => Resultados(
+  Widget catalogo(bool inicio, [Ficha? promocionSeleccionada]) => Resultados(
         db.collection('products').where('activo', isEqualTo: true),
         (lista) => Resultados(
-            db.collection('categorias').where('activa', isEqualTo: true),
-            (catalogoCategorias) => Resultados(
-                    db.collection('marcas').where('activa', isEqualTo: true),
-                    (catalogoMarcas) {
-                  final marcas = catalogoMarcas
-                      .map((m) => m.data()['nombre']?.toString() ?? '')
-                      .where((s) => s.isNotEmpty)
-                      .toSet()
-                      .toList()
-                    ..sort();
-                  final filtroMarca = marcas.contains(marca) ? marca : '';
-                  final categorias = catalogoCategorias
-                      .map((e) => e.data()['nombre']?.toString() ?? '')
-                      .where((e) => e.isNotEmpty)
-                      .toSet()
-                      .toList()
-                    ..sort();
-                  final visibles = lista.where((p) {
-                    final d = p.data();
-                    return (!categorias.contains(categoria) ||
-                            d['categoria'] == categoria) &&
-                        (filtroMarca.isEmpty || d['marca'] == filtroMarca) &&
-                        (!disponibles || entero(d['stock']) > 0) &&
-                        coincidePerfume(
-                          consulta,
-                          '${d['nombre']}',
-                          '${d['marca']}',
-                          '${d['aroma']} ${d['notas']}',
-                        );
-                  }).toList();
-                  visibles.sort(
-                    (a, b) => orden == 'Nombre'
-                        ? '${a.data()['nombre']}'
-                            .compareTo('${b.data()['nombre']}')
-                        : (orden == 'Menor precio' ? 1 : -1) *
-                            entero(a.data()['precio'])
-                                .compareTo(entero(b.data()['precio'])),
-                  );
-                  return ListView(
-                    padding: const EdgeInsets.all(16),
-                    children: [
-                      if (inicio)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 26, vertical: 32),
-                          decoration: BoxDecoration(
-                              color: tinta,
-                              border: Border(
-                                  left: BorderSide(color: oro, width: 5))),
-                          child: Row(children: [
-                            Expanded(
-                                child: const Etiqueta('Colección de perfumes',
-                                    style: TextStyle(
-                                        fontFamily: 'serif',
-                                        fontSize: 35,
-                                        color: Colors.white))),
-                            const SizedBox(width: 16),
-                            const Icon(Icons.spa_outlined, size: 46, color: oro)
-                          ]),
-                        ),
-                      if (inicio) const Promociones(),
-                      const SizedBox(height: 12),
-                      TextField(
-                        decoration: InputDecoration(
-                          labelText: traducir(
-                              context, 'Buscar por nombre, marca o aroma'),
-                          prefixIcon: Icon(Icons.search),
-                        ),
-                        onChanged: (v) => setState(() => consulta = v),
+          db.collection('categorias').where('activa', isEqualTo: true),
+          (catalogoCategorias) => Resultados(
+            db.collection('marcas').where('activa', isEqualTo: true),
+            (catalogoMarcas) {
+              final marcas = catalogoMarcas
+                  .map((m) => m.data()['nombre']?.toString() ?? '')
+                  .where((s) => s.isNotEmpty)
+                  .toSet()
+                  .toList()
+                ..sort();
+              final filtroMarca = marcas.contains(marca) ? marca : '';
+              final categorias = catalogoCategorias
+                  .map((e) => e.data()['nombre']?.toString() ?? '')
+                  .where((e) => e.isNotEmpty)
+                  .toSet()
+                  .toList()
+                ..sort();
+              final visibles = lista.where((p) {
+                final d = p.data();
+                return (promocionSeleccionada == null ||
+                        aplicaProducto(promocionSeleccionada!.data(), p.id)) &&
+                    (!categorias.contains(categoria) ||
+                        d['categoria'] == categoria) &&
+                    (filtroMarca.isEmpty || d['marca'] == filtroMarca) &&
+                    (!disponibles || unidadesDisponibles(d) > 0) &&
+                    coincidePerfume(
+                      consulta,
+                      '${d['nombre']}',
+                      '${d['marca']}',
+                      '${d['aroma']} ${d['notas']}',
+                    );
+              }).toList();
+              visibles.sort(
+                (a, b) => orden == 'Nombre'
+                    ? '${a.data()['nombre']}'.compareTo('${b.data()['nombre']}')
+                    : (orden == 'Menor precio' ? 1 : -1) *
+                        entero(a.data()['precio'])
+                            .compareTo(entero(b.data()['precio'])),
+              );
+              return ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  if (inicio)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 26,
+                        vertical: 32,
                       ),
-                      Wrap(
-                        spacing: 6,
+                      decoration: BoxDecoration(
+                        color: tinta,
+                        border: Border(left: BorderSide(color: oro, width: 5)),
+                      ),
+                      child: Row(
                         children: [
-                          for (final c in ['', ...categorias])
-                            ChoiceChip(
-                              label: Etiqueta(c.isEmpty ? 'Todos' : c),
-                              selected: c == categoria,
-                              onSelected: (_) => setState(() => categoria = c),
+                          Expanded(
+                            child: const Etiqueta(
+                              'Colección de perfumes',
+                              style: TextStyle(
+                                fontFamily: 'serif',
+                                fontSize: 35,
+                                color: Colors.white,
+                              ),
                             ),
+                          ),
+                          const SizedBox(width: 16),
+                          const Icon(Icons.spa_outlined, size: 46, color: oro),
                         ],
                       ),
-                      Wrap(
-                          spacing: 20,
-                          runSpacing: 4,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          children: [
-                            DropdownButton<String>(
-                                value: filtroMarca,
-                                items: [
-                                  DropdownMenuItem(
-                                      value: '',
-                                      child: Etiqueta('Todas las marcas')),
-                                  for (final m in marcas)
-                                    DropdownMenuItem(value: m, child: Text(m))
-                                ],
-                                onChanged: (v) =>
-                                    setState(() => marca = v ?? '')),
-                            FilterChip(
-                                label: const Etiqueta('En existencia'),
-                                selected: disponibles,
-                                onSelected: (v) =>
-                                    setState(() => disponibles = v)),
-                            DropdownButton<String>(
-                              value: orden,
-                              items: [
-                                for (final o in [
-                                  'Nombre',
-                                  'Menor precio',
-                                  'Mayor precio'
-                                ])
-                                  DropdownMenuItem(
-                                      value: o, child: Etiqueta(o)),
-                              ],
-                              onChanged: (v) => setState(() => orden = v!),
-                            ),
-                          ]),
-                      const SizedBox(height: 12),
-                      if (visibles.isEmpty)
-                        const Etiqueta('No se encontraron perfumes.')
-                      else
-                        rejilla(visibles),
+                    ),
+                  if (inicio)
+                    Promociones(
+                      onSeleccionar: (p) => context.push(Uri(
+                          path: '/catLogo',
+                          queryParameters: {'promocion': p.id}).toString()),
+                    ),
+                  if (promocionSeleccionada != null)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: InputChip(
+                        label: Text('Promoción: ${promocionSeleccionada!.id}'),
+                        onDeleted: () => context.go('/catLogo'),
+                      ),
+                    ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    decoration: InputDecoration(
+                      labelText: traducir(
+                        context,
+                        'Buscar por nombre, marca o aroma',
+                      ),
+                      prefixIcon: Icon(Icons.search),
+                    ),
+                    onChanged: (v) => setState(() => consulta = v),
+                  ),
+                  Wrap(
+                    spacing: 6,
+                    children: [
+                      for (final c in ['', ...categorias])
+                        ChoiceChip(
+                          label: Etiqueta(c.isEmpty ? 'Todos' : c),
+                          selected: c == categoria,
+                          onSelected: (_) => setState(() => categoria = c),
+                        ),
                     ],
-                  );
-                })),
+                  ),
+                  Wrap(
+                    spacing: 20,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      DropdownButton<String>(
+                        value: filtroMarca,
+                        items: [
+                          DropdownMenuItem(
+                            value: '',
+                            child: Etiqueta('Todas las marcas'),
+                          ),
+                          for (final m in marcas)
+                            DropdownMenuItem(value: m, child: Text(m)),
+                        ],
+                        onChanged: (v) => setState(() => marca = v ?? ''),
+                      ),
+                      FilterChip(
+                        label: const Etiqueta('En existencia'),
+                        selected: disponibles,
+                        onSelected: (v) => setState(() => disponibles = v),
+                      ),
+                      DropdownButton<String>(
+                        value: orden,
+                        items: [
+                          for (final o in [
+                            'Nombre',
+                            'Menor precio',
+                            'Mayor precio',
+                          ])
+                            DropdownMenuItem(value: o, child: Etiqueta(o)),
+                        ],
+                        onChanged: (v) => setState(() => orden = v!),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  if (visibles.isEmpty)
+                    const Etiqueta('No se encontraron perfumes.')
+                  else
+                    rejilla(visibles),
+                ],
+              );
+            },
+          ),
+        ),
       );
   Widget tarjetas(List<Ficha> p) => p.isEmpty
       ? vacio('No hay perfumes disponibles en esta lista.')
@@ -374,9 +428,12 @@ class _TiendaState extends State<Tienda> {
                   child: Card(
                     clipBehavior: Clip.antiAlias,
                     child: InkWell(
-                      onTap: () => context.push(Uri(
+                      onTap: () => context.push(
+                        Uri(
                           path: '/detalleDeProducto',
-                          queryParameters: {'productoRef': p.id}).toString()),
+                          queryParameters: {'productoRef': p.id},
+                        ).toString(),
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
@@ -398,8 +455,9 @@ class _TiendaState extends State<Tienda> {
                                 Etiqueta(
                                   'Precio: ${formatoColones(entero(p.data()['precio']))}',
                                 ),
-                                Etiqueta(
-                                    'Cantidad: ${entero(p.data()['stock'])}'),
+                                IndicadorStock(
+                                  stock: unidadesDisponibles(p.data()),
+                                ),
                                 Favorito(p.reference),
                               ],
                             ),
@@ -432,8 +490,10 @@ class Favorito extends StatelessWidget {
       builder: (_, snap) {
         final guardado = snap.data?.exists == true;
         return IconButton(
-          tooltip: traducir(context,
-              guardado ? 'Quitar de favoritos' : 'Guardar en favoritos'),
+          tooltip: traducir(
+            context,
+            guardado ? 'Quitar de favoritos' : 'Guardar en favoritos',
+          ),
           icon: Icon(
             guardado ? Icons.favorite : Icons.favorite_border,
             color: oro,
@@ -484,7 +544,7 @@ class Detalle extends StatelessWidget {
                 Text('${d['descripcion'] ?? ''}'),
                 NotasOlfativas(notas: '${d['notas'] ?? ''}'),
                 Favorito(producto),
-                IndicadorStock(stock: entero(d['stock'])),
+                IndicadorStock(stock: unidadesDisponibles(d)),
                 Resultados(
                   db
                       .collection('presentaciones')
@@ -502,22 +562,101 @@ class Detalle extends StatelessWidget {
                             title: Etiqueta(
                               '${v.data()['ml']} ml · ${formatoColones(entero(v.data()['precio']))}',
                             ),
-                            subtitle:
-                                Etiqueta('Cantidad: ${v.data()['stock']}'),
+                            subtitle: Etiqueta(
+                              'Disponibles: ${unidadesDisponibles(v.data())}',
+                            ),
                             trailing: IconButton(
                               icon: const Icon(Icons.add_shopping_cart),
                               tooltip: traducir(context, 'Agregar al carrito'),
-                              onPressed: entero(v.data()['stock']) < 1
+                              onPressed: unidadesDisponibles(v.data()) < 1
                                   ? null
                                   : () => ejecutar(context, () async {
                                         if (!identificar(context)) return;
-                                        await cambiarCantidad(v.reference, 1);
+                                        final guardada = await perfil
+                                            .collection('carrito')
+                                            .doc(v.id)
+                                            .get();
+                                        if (!context.mounted) return;
+                                        final maximo = unidadesDisponibles(
+                                                    v.data())
+                                                .clamp(0, 99)
+                                                .toInt() -
+                                            entero(
+                                                guardada.data()?['cantidad']);
+                                        if (maximo < 1)
+                                          throw StateError(
+                                            'Ya alcanzaste el máximo disponible.',
+                                          );
+                                        int cantidad = 1;
+                                        final elegida = await showDialog<int>(
+                                          context: context,
+                                          builder: (ctx) => StatefulBuilder(
+                                            builder: (_, refrescar) =>
+                                                AlertDialog(
+                                              title: const Text(
+                                                  'Agregar al carrito'),
+                                              content: Column(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Text(
+                                                      'Máximo disponible: $maximo'),
+                                                  Row(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      IconButton(
+                                                        icon: const Icon(
+                                                          Icons.remove,
+                                                        ),
+                                                        onPressed: cantidad > 1
+                                                            ? () => refrescar(
+                                                                  () =>
+                                                                      cantidad--,
+                                                                )
+                                                            : null,
+                                                      ),
+                                                      Text('$cantidad'),
+                                                      IconButton(
+                                                        icon: const Icon(
+                                                            Icons.add),
+                                                        onPressed: cantidad <
+                                                                maximo
+                                                            ? () => refrescar(
+                                                                  () =>
+                                                                      cantidad++,
+                                                                )
+                                                            : null,
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ],
+                                              ),
+                                              actions: [
+                                                TextButton(
+                                                  onPressed: () =>
+                                                      Navigator.pop(ctx),
+                                                  child: const Text('Cancelar'),
+                                                ),
+                                                FilledButton(
+                                                  onPressed: () =>
+                                                      Navigator.pop(
+                                                          ctx, cantidad),
+                                                  child: const Text('Agregar'),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        );
+                                        if (elegida == null) return;
+                                        await cambiarCantidad(
+                                            v.reference, elegida);
                                         if (context.mounted)
                                           ScaffoldMessenger.of(context)
                                               .showSnackBar(
                                             const SnackBar(
                                               content: Etiqueta(
-                                                  'Agregado al carrito.'),
+                                                'Agregado al carrito.',
+                                              ),
                                             ),
                                           );
                                       }),
@@ -535,7 +674,8 @@ class Detalle extends StatelessWidget {
 }
 
 class Promociones extends StatelessWidget {
-  const Promociones({super.key});
+  const Promociones({super.key, required this.onSeleccionar});
+  final ValueChanged<Ficha> onSeleccionar;
   @override
   Widget build(BuildContext context) => Resultados(
         db.collection('promociones').where('activa', isEqualTo: true),
@@ -545,7 +685,12 @@ class Promociones extends StatelessWidget {
               ListTile(
                 leading: const Icon(Icons.local_offer_outlined),
                 title: Etiqueta('${p.data()['porcentaje']} % de descuento'),
-                subtitle: SelectableText('Código: ${p.id}'),
+                subtitle:
+                    Text('${p.data()['descripcion'] ?? ''}\nCódigo: ${p.id}'),
+                trailing: TextButton(
+                    onPressed: () => onSeleccionar(p),
+                    child: const Text("Ver promoción")),
+                onTap: () => onSeleccionar(p),
               ),
           ],
         ),

@@ -23,13 +23,20 @@ Future<Map<String, String>?> formulario(
                 for (final c in campos.entries)
                   TextFormField(
                     initialValue: valores[c.key],
-                    decoration:
-                        InputDecoration(labelText: traducir(context, c.value)),
+                    decoration: InputDecoration(
+                      labelText: traducir(context, c.value),
+                    ),
                     onChanged: (v) => valores[c.key] = v.trim(),
                     validator: (v) {
                       final t = v?.trim() ?? '';
                       if (t.isEmpty &&
-                          !['phone_number', 'imagen', 'notas'].contains(c.key))
+                          ![
+                            'phone_number',
+                            'imagen',
+                            'notas',
+                            'direccion',
+                            'descripcion_promo',
+                          ].contains(c.key))
                         return traducir(context, 'Completa este campo.');
                       if ([
                         'stock',
@@ -47,6 +54,8 @@ Future<Map<String, String>?> formulario(
                           t.isNotEmpty &&
                           Uri.tryParse(t)?.scheme != 'https')
                         return traducir(context, 'Usa una dirección HTTPS.');
+                      if (c.key == 'direccion' && t.length > 500)
+                        return 'Máximo 500 caracteres.';
                       if (['inicio', 'fin'].contains(c.key) &&
                           DateTime.tryParse(t) == null)
                         return traducir(context, 'Usa el formato AAAA-MM-DD.');
@@ -136,7 +145,7 @@ class _Resumen extends StatelessWidget {
               ListTile(
                 title: const Etiqueta('Productos agotados'),
                 trailing: Etiqueta(
-                  '${productos.where((p) => entero(p.data()['stock']) == 0).length}',
+                  '${productos.where((p) => unidadesDisponibles(p.data()) == 0).length}',
                 ),
               ),
               ListTile(
@@ -161,6 +170,15 @@ class _Resumen extends StatelessWidget {
       );
 }
 
+String etapaPromocion(Datos datos) {
+  final ahora = DateTime.now(), fin = datos['fin'], inicio = datos['inicio'];
+  if (fin is Timestamp && !fin.toDate().isAfter(ahora)) return 'Finalizadas';
+  if (datos['activa'] != true) return 'Inactivas';
+  if (inicio is Timestamp && inicio.toDate().isAfter(ahora))
+    return 'Programadas';
+  return 'Activas';
+}
+
 class _Gestion extends StatelessWidget {
   const _Gestion(this.grupo, this.nombre);
   final String grupo, nombre;
@@ -176,33 +194,41 @@ class _Gestion extends StatelessWidget {
               icon: const Icon(Icons.add),
               label: Etiqueta('Agregar · $nombre'),
             ),
-            for (final d in docs)
-              Card(
-                child: Column(
-                  children: [
-                    ListTile(
-                      title: Etiqueta('${d.data()['nombre'] ?? d.id}'),
-                      subtitle: Etiqueta(
-                        d.data()[activo] == true ? 'Visible' : 'Oculto',
-                      ),
-                      onTap: () => ejecutar(context, () => editar(context, d)),
-                      trailing: Switch(
-                        value: d.data()[activo] == true,
-                        onChanged: (v) => ejecutar(
-                          context,
-                          () => d.reference.update({activo: v}),
+            for (final etapa in grupo == 'promociones'
+                ? ['Activas', 'Programadas', 'Finalizadas', 'Inactivas']
+                : ['']) ...[
+              if (etapa.isNotEmpty)
+                Text(etapa, style: Theme.of(context).textTheme.titleMedium),
+              for (final d in docs.where(
+                  (d) => etapa.isEmpty || etapaPromocion(d.data()) == etapa))
+                Card(
+                  child: Column(
+                    children: [
+                      ListTile(
+                        title: Etiqueta('${d.data()['nombre'] ?? d.id}'),
+                        subtitle: Etiqueta(
+                          d.data()[activo] == true ? 'Visible' : 'Oculto',
+                        ),
+                        onTap: () =>
+                            ejecutar(context, () => editar(context, d)),
+                        trailing: Switch(
+                          value: d.data()[activo] == true,
+                          onChanged: (v) => ejecutar(
+                            context,
+                            () => d.reference.update({activo: v}),
+                          ),
                         ),
                       ),
-                    ),
-                    if (grupo == 'products')
-                      OutlinedButton(
-                        onPressed: () =>
-                            ejecutar(context, () => variantes(context, d)),
-                        child: const Etiqueta('Gestionar presentaciones'),
-                      ),
-                  ],
+                      if (grupo == 'products')
+                        OutlinedButton(
+                          onPressed: () =>
+                              ejecutar(context, () => variantes(context, d)),
+                          child: const Etiqueta('Gestionar presentaciones'),
+                        ),
+                    ],
+                  ),
                 ),
-              ),
+            ],
           ],
         ),
       );
@@ -223,6 +249,7 @@ class _Gestion extends StatelessWidget {
           'porcentaje': 'Porcentaje',
           'inicio': 'Desde (AAAA-MM-DD)',
           'fin': 'Hasta (fecha exclusiva)',
+          'descripcion_promo': 'Descripción de la promoción',
         },
       _ => {'nombre': 'Nombre'},
     };
@@ -231,6 +258,7 @@ class _Gestion extends StatelessWidget {
       if (t is Timestamp)
         inicial[k] = t.toDate().toIso8601String().substring(0, 10);
     }
+    inicial['descripcion_promo'] = inicial['descripcion'] ?? '';
     final valores = await formulario(context, nombre, campos, inicial);
     if (valores == null) return;
     final datos = <String, dynamic>{...valores, if (doc == null) activo: true};
@@ -246,6 +274,54 @@ class _Gestion extends StatelessWidget {
           fin = DateTime.parse(valores['fin']!);
       if (!fin.isAfter(inicio))
         throw StateError('La fecha final debe ser posterior a la inicial.');
+      if (!context.mounted) return;
+      final catalogo = await db.collection('products').get();
+      if (!context.mounted) return;
+      final seleccion = Set<String>.from(
+        inicial['producto_ids'] ?? catalogo.docs.map((p) => p.id),
+      );
+      final guardar = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => StatefulBuilder(
+          builder: (_, refrescar) => AlertDialog(
+            title: const Text('Productos de la promoción'),
+            content: SizedBox(
+              width: 360,
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  for (final p in catalogo.docs)
+                    CheckboxListTile(
+                      title: Text('${p.data()['nombre'] ?? p.id}'),
+                      value: seleccion.contains(p.id),
+                      onChanged: (v) => refrescar(() {
+                        if (v == true) {
+                          seleccion.add(p.id);
+                        } else {
+                          seleccion.remove(p.id);
+                        }
+                      }),
+                    ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton(
+                onPressed:
+                    seleccion.isEmpty ? null : () => Navigator.pop(ctx, true),
+                child: const Text('Guardar selección'),
+              ),
+            ],
+          ),
+        ),
+      );
+      if (guardar != true) return;
+      datos['descripcion'] = datos.remove('descripcion_promo');
+      datos['producto_ids'] = seleccion.toList()..sort();
       ref = col.doc(codigo);
       datos.addAll({
         'codigo': codigo,
@@ -328,13 +404,20 @@ class _Gestion extends StatelessWidget {
         throw StateError(
           'El inventario cambió. Abre la presentación de nuevo.',
         );
-      tx.set(ref, {
-        'producto_id': p.id,
-        'activa': true,
-        'stock': stock,
-        'precio': precio,
-        'ml': int.parse(valores['ml']!),
-      });
+      if (stock < entero(previa?['reservado']))
+        throw StateError(
+          'La cantidad física no puede ser inferior a las unidades reservadas.',
+        );
+      tx.set(
+          ref,
+          {
+            'producto_id': p.id,
+            'activa': true,
+            'stock': stock,
+            'precio': precio,
+            'ml': int.parse(valores['ml']!),
+          },
+          SetOptions(merge: true));
       tx.update(p.reference, {
         'stock': entero(producto['stock']) + stock - entero(previa?['stock']),
         'precio': precio,

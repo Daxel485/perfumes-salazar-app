@@ -12,6 +12,14 @@ exports.crearPedido = onCall(async ({auth, data}) => {
   if (!auth) throw new HttpsError("unauthenticated", "Inicia sesión para pedir.");
 
   const {solicitudId, items, codigo} = data ?? {};
+  const entrega = data?.entrega ?? "retiro";
+  const pago = data?.pago ?? "efectivo";
+  const direccion = entrega === "domicilio" && typeof data?.direccion === "string" ? data.direccion.trim() : "";
+  if (!["retiro", "domicilio"].includes(entrega) || !["sinpe", "efectivo"].includes(pago) ||
+      (entrega === "domicilio" && (!direccion || direccion.length > 500)) ||
+      (data?.versionCompra === 2 && (!data.entrega || !data.pago))) {
+    throw new HttpsError("invalid-argument", "Revisa la entrega, la dirección y el pago.");
+  }
   if (!idValido(solicitudId) || !Array.isArray(items) ||
       items.length < 1 || items.length > 30 ||
       (codigo != null && !idValido(codigo))) {
@@ -36,16 +44,18 @@ exports.crearPedido = onCall(async ({auth, data}) => {
   const pedido = db.collection("pedidos").doc(pedidoId);
   const lineas = [...cantidades].sort(([a], [b]) => a.localeCompare(b));
   const codigoNormalizado = codigo?.toUpperCase() ?? null;
-  const contenido = JSON.stringify([lineas, codigoNormalizado]);
+  const contenido = JSON.stringify([lineas, codigoNormalizado, entrega, pago, direccion]);
 
   return db.runTransaction(async (tx) => {
     const previo = await tx.get(pedido);
     if (previo.exists) {
-      if (previo.get("contenido") !== contenido) {
+      const firma = previo.get("inventario_version") === 2 ? contenido : JSON.stringify([lineas, codigoNormalizado]);
+      if (previo.get("contenido") !== firma) {
         throw new HttpsError("already-exists", "Ya se usó ese identificador.");
       }
       return {pedidoId: pedido.id, total: previo.get("total")};
     }
+    const perfil = (await tx.get(usuario)).data() ?? {};
     let carrito = [];
     if (data.desdeCarrito === true) {
       const actuales = await tx.get(usuario.collection("carrito"));
@@ -66,7 +76,7 @@ exports.crearPedido = onCall(async ({auth, data}) => {
       const [, cantidad] = lineas[i];
       const p = presentacion.data();
       if (!p || !idValido(p.producto_id) || p.activa !== true ||
-          !Number.isSafeInteger(p.stock) || p.stock < cantidad ||
+          !Number.isSafeInteger(p.stock) || p.stock - (p.reservado ?? 0) < cantidad ||
           !Number.isSafeInteger(p.precio) || p.precio < 1 || p.precio > 10000000) {
         throw new HttpsError("failed-precondition", "Una presentación ya no está disponible.");
       }
@@ -76,7 +86,7 @@ exports.crearPedido = onCall(async ({auth, data}) => {
       const producto = productos.get(p.producto_id);
       const unidades = (unidadesPorProducto.get(p.producto_id) ?? 0) + cantidad;
       if (producto.get("activo") !== true || !Number.isInteger(p.ml) || p.ml < 1 ||
-          !Number.isSafeInteger(producto.get("stock")) || producto.get("stock") < unidades) {
+          !Number.isSafeInteger(producto.get("stock")) || producto.get("stock") - (producto.get("reservado") ?? 0) < unidades) {
         throw new HttpsError("failed-precondition", "Un perfume ya no está disponible.");
       }
       unidadesPorProducto.set(p.producto_id, unidades);
@@ -102,14 +112,18 @@ exports.crearPedido = onCall(async ({auth, data}) => {
           !Number.isInteger(porcentaje) || porcentaje < 1 || porcentaje > 100) {
         throw new HttpsError("failed-precondition", "El código de promoción no está vigente.");
       }
-      descuento = Math.round(subtotal * porcentaje / 100);
+      const ids = promo.get("producto_ids");
+      const elegible = detalle.filter(item => ids == null || (Array.isArray(ids) && ids.includes(item.producto_id)))
+        .reduce((suma, item) => suma + item.precio_unitario * item.cantidad, 0);
+      if (!elegible) throw new HttpsError("failed-precondition", "El código no aplica a estos productos.");
+      descuento = Math.round(elegible * porcentaje / 100);
     }
 
     for (const [i, ref] of referencias.entries()) {
-      tx.update(ref, {stock: FieldValue.increment(-lineas[i][1])});
+      tx.update(ref, {reservado: FieldValue.increment(lineas[i][1])});
     }
     for (const [id, unidades] of unidadesPorProducto) {
-      tx.update(productos.get(id).ref, {stock: FieldValue.increment(-unidades)});
+      tx.update(productos.get(id).ref, {reservado: FieldValue.increment(unidades)});
     }
     const total = subtotal - descuento;
     if (data.desdeCarrito === true && total !== data.totalEsperado) {
@@ -118,6 +132,10 @@ exports.crearPedido = onCall(async ({auth, data}) => {
     carrito.forEach(doc => tx.delete(doc.ref));
     tx.create(pedido, {
       user_ref: usuario,
+      cliente_nombre: perfil.display_name || auth.token.email || auth.uid,
+      entrega, pago, direccion,
+      inventario_version: 2,
+      seguimiento: {pendiente: FieldValue.serverTimestamp()},
       items: detalle,
       subtotal,
       descuento,
@@ -161,18 +179,21 @@ exports.cancelarPedido = onCall(async ({auth, data}) => {
     const unidadesPorProducto = new Map();
     for (const item of pedido.items) {
       const presentacion = db.collection("presentaciones").doc(item.presentacion_id);
-      tx.update(presentacion, {stock: FieldValue.increment(item.cantidad)});
+      tx.update(presentacion, pedido.inventario_version === 2
+        ? {reservado: FieldValue.increment(-item.cantidad)} : {stock: FieldValue.increment(item.cantidad)});
       unidadesPorProducto.set(item.producto_id,
         (unidadesPorProducto.get(item.producto_id) ?? 0) + item.cantidad);
     }
     if (pedido.inventario_catalogo === true) {
       for (const [id, unidades] of unidadesPorProducto) {
-        tx.update(db.collection("products").doc(id), {stock: FieldValue.increment(unidades)});
+        tx.update(db.collection("products").doc(id), pedido.inventario_version === 2
+          ? {reservado: FieldValue.increment(-unidades)} : {stock: FieldValue.increment(unidades)});
       }
     }
     tx.update(referencia, {
       estado: "cancelado",
       cancelled_time: FieldValue.serverTimestamp(),
+      "seguimiento.cancelado": FieldValue.serverTimestamp(),
     });
     tx.create(db.collection("movimientos_inventario").doc(pedidoId + "_devolucion"), {
       pedido_ref: referencia,
@@ -182,5 +203,45 @@ exports.cancelarPedido = onCall(async ({auth, data}) => {
       created_time: FieldValue.serverTimestamp(),
     });
     return {pedidoId, estado: "cancelado"};
+  });
+});
+
+exports.avanzarPedido = onCall(async ({auth, data}) => {
+  if (!auth) throw new HttpsError("unauthenticated", "Inicia sesión.");
+  const {pedidoId, estado} = data ?? {};
+  const siguiente = {pendiente: "confirmado", confirmado: "en_preparacion", en_preparacion: "entregado"};
+  if (!/^[a-f0-9]{64}$/.test(pedidoId ?? "") || !Object.values(siguiente).includes(estado)) {
+    throw new HttpsError("invalid-argument", "Revisa el pedido y su estado.");
+  }
+  return db.runTransaction(async tx => {
+    const admin = await tx.get(db.collection("users").doc(auth.uid));
+    if (admin.get("role") !== "admin") throw new HttpsError("permission-denied", "Se requiere administración.");
+    const ref = db.collection("pedidos").doc(pedidoId);
+    const pedido = (await tx.get(ref)).data();
+    if (!pedido) throw new HttpsError("not-found", "Pedido inexistente.");
+    if (pedido.estado === estado) return {pedidoId, estado};
+    if (siguiente[pedido.estado] !== estado) throw new HttpsError("failed-precondition", "El estado cambió.");
+    if (estado === "entregado" && pedido.inventario_version === 2) {
+      const cantidades = new Map();
+      for (const item of pedido.items) {
+        for (const path of ["products/" + item.producto_id, "presentaciones/" + item.presentacion_id]) {
+          cantidades.set(path, (cantidades.get(path) ?? 0) + item.cantidad);
+        }
+      }
+      const existencias = await tx.getAll(...Array.from(cantidades.keys(), path => db.doc(path)));
+      for (const doc of existencias) {
+        const n = cantidades.get(doc.ref.path);
+        if (!(doc.get("stock") >= n && doc.get("reservado") >= n)) {
+          throw new HttpsError("failed-precondition", "Revisa la reserva de inventario.");
+        }
+        tx.update(doc.ref, {stock: FieldValue.increment(-n), reservado: FieldValue.increment(-n)});
+      }
+      tx.create(db.collection("movimientos_inventario").doc(pedidoId + "_entrega"), {
+        pedido_ref: ref, tipo: "entrega", created_time: FieldValue.serverTimestamp(),
+        lineas: pedido.items.map(i => ({producto_id: i.producto_id, presentacion_id: i.presentacion_id, variacion: -i.cantidad})),
+      });
+    }
+    tx.update(ref, {estado, ["seguimiento." + estado]: FieldValue.serverTimestamp()});
+    return {pedidoId, estado};
   });
 });

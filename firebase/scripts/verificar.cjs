@@ -51,7 +51,10 @@ async function verificar(){
     assert.equal(await firestore('GET',reserva.path,cliente),403);
     const pedido=(await ref.get()).data();
     assert.equal(pedido.total,1800);assert.equal(pedido.descuento,200);assert.equal(pedido.items.length,1);
-    assert.equal((await variante.get()).get('stock'),1);assert.equal((await producto.get()).get('stock'),1);
+    for (const ref of [producto,variante]) {
+      const inventario = (await ref.get()).data();
+      assert.equal(inventario.stock,3);assert.equal(inventario.reservado,2);
+    }
     assert.equal((await linea.get()).exists,false);
     assert.equal(await firestore('GET',ref.path,cliente),200);
     assert.equal(await firestore('GET',ref.path),403);
@@ -64,10 +67,13 @@ async function verificar(){
     assert.deepEqual(competir.map(r=>r.status).sort(),[200,400]);
     const ganador=db.doc('pedidos/'+competir.find(r=>r.status===200).result.pedidoId);
     limpiar.push(ganador,db.doc('movimientos_inventario/'+ganador.id+'_reserva'));
-    assert.equal((await variante.get()).get('stock'),0);
+    assert.equal((await variante.get()).get('reservado'),3);
     for (const estado of ['confirmado','en_preparacion','entregado']) {
-      assert.equal(await firestore('PATCH',ganador.path+'?updateMask.fieldPaths=estado',admin,{estado:{stringValue:estado}}),200);
+      assert.equal((await llamar('avanzarPedido',{pedidoId:ganador.id,estado},admin)).status,200);
     }
+    limpiar.push(db.doc('movimientos_inventario/'+ganador.id+'_entrega'));
+    assert.equal((await variante.get()).get('stock'),0);
+    assert.equal((await variante.get()).get('reservado'),0);
     assert.equal((await llamar('cancelarPedido',{pedidoId:ganador.id},cliente)).status,400);
     console.log('OK · Catálogo público, roles, carrito privado, autenticación, cupón, precio, inventario, reintento, propiedad, cancelación, concurrencia y estados administrativos.');
   } finally {
