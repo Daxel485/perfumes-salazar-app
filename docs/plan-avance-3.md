@@ -1,42 +1,34 @@
-# Plan — Avance 3 (semana 10, 10 %)
+# Avance 3 — Semana 10
 
-## Qué evalúa la rúbrica
+## Rúbrica y alcance verificable
 
-| Rubro | Excelente (3,33) |
-|-------|------------------|
-| Implementación de las historias de usuario | ≥ 40 % de las HU implementadas |
-| Funcionalidad | ≥ 40 % de las HU y **fiel al prototipo** del Avance 2 |
-| Participación en GitHub | **100 % de los miembros** con PR/pull significativo de código |
+El Avance 2 oficial contiene **29 historias de usuario**. Para obtener la calificación excelente en implementación y funcionalidad se necesitan **12 historias completas** (`12 / 29 = 41,38 %`), fieles a las pantallas del prototipo. Las historias seleccionadas están marcadas en [historias-de-usuario.md](historias-de-usuario.md).
 
-Para la defensa final además cuentan: 3 PR por persona **separados al menos 1 semana**, ≥ 8 colecciones con una transaccional, 2 tipos de autenticación con roles que limitan opciones, 3 custom widgets, Firebase Storage medular y una tecnología no vista en clase. Conviene que el Avance 3 ya deje encaminado todo eso.
+| Criterio | Evidencia exigida |
+|---|---|
+| Implementación de historias | 12 de 29 historias con todos sus criterios de aceptación |
+| Funcionalidad | Ejecución en FlutterFlow Test Mode, datos reales/persistentes y diseño concordante con Avance 2 |
+| Participación GitHub | Cada uno de los **cinco** integrantes debe crear desde su propia cuenta un pull request significativo de código; un commit o un PR a nombre de otro no acredita su participación |
 
-## Reparto
+## Proyecto y tecnologías
 
-Cada integrante hace **su propia rama y su propio PR** con código Dart real (custom widget, custom action o custom function) además de armar sus pantallas en FlutterFlow.
+- [FlutterFlow — Perfumes Salazar](https://app.flutterflow.io/project/perfumes-salazar-i0yn4x)
+- Firebase Authentication (correo/contraseña y Google), Cloud Firestore y Firebase Storage.
+- Prototipo del Avance 2: 20 pantallas de 390 × 844, estilo crema, negro cálido y dorado.
+- Repositorio: [Daxel485/perfumes-salazar-app](https://github.com/Daxel485/perfumes-salazar-app).
 
-| Integrante | HU | Pantallas FlutterFlow | Código para su PR (`custom_code/`) |
-|------------|----|-----------------------|------------------------------------|
-| Axel Segura | HU-01 a HU-05, HU-19 | Bienvenida, Iniciar sesión, Crear cuenta, Recuperar contraseña; colección `users` con `role`; Firebase + Auth | `functions/es_admin.dart`, `functions/formatear_colones.dart` |
-| Integrante 2 | HU-06, HU-07 | Inicio, Catálogo (filtro por categoría, búsqueda, orden) | **Custom widget** `ChipsCategorias` (chips horizontales seleccionables) |
-| Integrante 3 | HU-08, HU-09 | Detalle de perfume, Favoritos | **Custom widget** `SelectorPresentacion` (60/100/200 ml) |
-| Integrante 4 | HU-10, HU-11 | Carrito, Confirmar pedido, Solicitud enviada | **Custom widget** `StepperCantidad` + action `crearPedido` (número `PS-xxxx`) |
+## Equipo según Avance 2
 
-> Cambien "Integrante 2/3/4" por los nombres reales.
+Johan Sánchez Vásquez, Alex Daniel Salazar Brenes, Fabián Alberto Mora Cordero, Patrick Garita Chinchilla y Axel Segura Abarca. El equipo debe confirmar la asignación concreta de HU y subir sus aportes con sus cuentas; este plan no atribuye autoría ficticia.
 
-## Orden de trabajo
+## Secuencia de entrega
 
-1. **Axel** — dejar listo: proyecto FlutterFlow, Firebase conectado (Auth correo + Google, Firestore, Storage), tema (colores/fuentes del prototipo), colecciones del `docs/modelo-de-datos.md`, datos semilla (categorías, marcas, 6–8 productos con imágenes en Storage) y navegación base (barra inferior Inicio · Catálogo · Favoritos · Carrito · Perfil).
-2. Todos — se agregan como colaboradores **Editor** en FlutterFlow y como colaboradores del repo.
-3. Cada uno trabaja sus pantallas en FlutterFlow **en su propio branch de FlutterFlow** (Branching) o coordinando quién edita qué página, para no pisarse.
-4. Cada uno escribe su código en el repo (`custom_code/...`) en una rama `feature/...`, abre PR a `main`, otro integrante lo revisa y aprueba, y luego se pega/sincroniza en FlutterFlow → *Custom Code*.
-5. Al cerrar, se sube el snapshot del código generado (`app/`) con un PR `chore: snapshot FlutterFlow avance 3`.
-6. Entrega: link del repo + link del proyecto FlutterFlow (profe como Editor) + capturas/APK web.
+1. Conectar FlutterFlow a Firebase y configurar las colecciones y reglas.
+2. Implementar HU-01 a HU-04 (acceso), HU-06 a HU-10 (consulta) y HU-12 a HU-14 (favoritos y carrito).
+3. Probar cada criterio de aceptación en Test Mode y registrar resultado en `avance-3-evidencias.md`.
+4. Exportar el código generado por FlutterFlow a `app/` si la cuenta permite descarga o sincronización GitHub; no sustituirlo por una maqueta ajena al proyecto.
+5. Cada integrante abre su propio PR con código significativo. Revisar y fusionar los cinco PR antes de declarar satisfecho el criterio de GitHub.
 
-## Checklist de entrega
+## Estado
 
-- [ ] 12 HU funcionando en Test Mode / Run Mode
-- [ ] Pantallas fieles al prototipo (colores, tipografía, orden de elementos)
-- [ ] 4 PR mergeados, uno por integrante, con código significativo
-- [ ] Roles: opción “Panel de administración” solo visible si `role == admin`
-- [ ] Profe agregado como Editor en FlutterFlow
-- [ ] README actualizado con capturas
+La creación de pantallas y del proyecto FlutterFlow **no equivale** a tener historias funcionales. Solo se marcarán completadas las historias probadas en la bitácora de evidencias.
